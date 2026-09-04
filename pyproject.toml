@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blindbeacon"
+version = "0.0.0"
+description = "Agent-safe access to GA4GH Beacon v2: view splitting and a disclosure budget, over MCP"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+# TODO: institutional email rather than a personal one before first publish.
+authors = [{ name = "David Lawrence" }]
+keywords = ["ga4gh", "beacon", "genomics", "mcp", "privacy", "differential-privacy"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+# Core stays Beacon-generic: no Django, no VariantGrid. See claude/architecture.md.
+dependencies = [
+    "mcp>=2.1",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+# The clinician webapp ships as a container and is never published to PyPI.
+# This extra exists so the monorepo can install it for local development.
+web = ["django>=5.0"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.urls]
+Homepage = "https://github.com/SACGF/blindbeacon"
+Repository = "https://github.com/SACGF/blindbeacon"
+
+# Add when the server module lands:
+# [project.scripts]
+# blindbeacon-mcp = "blindbeacon.mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/blindbeacon"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
