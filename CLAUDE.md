@@ -20,6 +20,12 @@ Planning material, roughly in reading order:
 - `claude/budget_notes.md` - disclosure budget design. The authority on the budget.
 - `notes.md` - prior-art reviews (GA4GH Agentic Harness, Noisegate, AskBeacon) and the licensing
   decision.
+- `literature/beacon_attacks/` - literature review of published attacks on GA4GH Beacons and the
+  defences proposed against them, plus the statistical-database theory underneath. `README.md` is
+  the review, `bibliography.md` has the DOIs and a confidence tag per entry saying whether the
+  paper was read in full, read at abstract level, or is an unverified lead not to be cited. Source
+  PDFs are not kept in the repository, since most are under publisher copyright and this repo is
+  public.
 
 The original funding application has been removed: it held budget figures and negotiation detail
 that must not go public. `doc/project.md` carries everything from it that governs the build.
