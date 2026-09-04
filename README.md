@@ -13,7 +13,7 @@
 > month six. Dates will move. The package is not on PyPI and will not be published until the MCP
 > server does something real.
 
-![Claude, blindfolded and caged, being told to mine the database](claude_cage.png)
+![Claude, blindfolded and caged, being told to mine the database](images/claude_cage.png)
 
 Lets an LLM agent help clinicians mine clinical variant databases for rare disease cohort
 assembly and trial recruitment, without any record-level patient data reaching the model.
