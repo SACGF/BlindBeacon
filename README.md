@@ -68,7 +68,5 @@ of VariantGrid's. See [claude/architecture.md](claude/architecture.md).
 - [AskBeacon](https://github.com/aehrc/AskBeacon) (CSIRO, Bauer lab) - natural language to Beacon
   queries, LLM never touches data directly. No privacy budget or adaptive-attacker model; relies on
   the Beacon's existing access control.
-- [cdot](https://github.com/SACGF/cdot) - our open-data, agent-accessible transcript service. This
-  project is the controlled-access version of that idea.
 
 See [notes.md](notes.md) for full reviews of each.
