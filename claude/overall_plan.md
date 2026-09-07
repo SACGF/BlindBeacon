@@ -36,7 +36,19 @@ Goal: a working two-view Beacon MCP, and a fake Beacon to point it at.
   configurable restriction levels so B can iterate them.
 - **A4. Disclosure budget.** Per-session metering: categorical record-exclusion, epsilon-style
   accounting on counts, specificity measure on predicate narrowness. Must compose across
-  queries. Start simple and let B break it.
+  queries. Start simple and let B break it. Four constraints added since, from the literature
+  review and from Jordi Rambla's feedback; `claude/budget_notes.md` is the authority.
+  - A refill is a rate limit, not a budget. Any refilling ceiling needs a lifetime ceiling above
+    it, and the effective limit is the tighter of the two, never the sum.
+  - Memoisation of repeated queries is permanent and keyed to the principal, and must not depend
+    on budget state. Otherwise refunds hand the attacker the repetitions needed to average out the
+    fuzzing.
+  - Composition with any budget the upstream Beacon already runs. The gateway authenticates
+    upstream as its own service principal, so agent queries never land on the clinician's account
+    and silently occlude their view. Two meters on one pipe compose as a minimum, not a sum.
+  - Refusals must be simulatable: computable from the query history and already-released answers,
+    never from the answer being refused. A non-simulatable refusal is an oracle for the count that
+    triggered it, and charging bits for it does not fix that.
 - **A5. Audit log.** Per-session log that can *prove* no record-level data reached the model.
   Every response to the model is logged post-fuzz; log format is designed for governance review.
 - **A6. Clinician webapp.** Hosts the conversation server-side rather than pointing Claude Desktop
@@ -48,6 +60,20 @@ Goal: a working two-view Beacon MCP, and a fake Beacon to point it at.
   tools the model calls. Reuse AskBeacon's ontology retrieval approach where it fits.
 - **A8. VariantGrid Beacon extension.** Whatever VariantGrid's Beacon v2 needs to support the
   above (filters, tiered responses). In scope per `doc/project.md`.
+- **A9. Operator surface: presets and steward declarations.** The admin-facing configuration is a
+  *named restriction level* picked off the E2 curve, plus a handful of per-dataset declarations set
+  by the data steward: what membership in this dataset implies (nothing, a phenotype, a diagnosis,
+  a stigmatised one), whether the cohort contains families, the k floor, and the granularity the
+  model may see. Nothing infers risk at query time. **Test to apply to every budget component: if
+  it cannot be reduced to a preset an admin picks without understanding it, it does not ship.** The
+  three-part budget as currently written does not pass this yet, which is a finding for A4 to
+  resolve, not a caveat to carry.
+- **A10. Per-subject exposure ledger.** The exclusion floor is per individual but currently priced
+  with a population average, and the worst-affected participant in Simmons and Berger's real-data
+  measurement was about five times as exposed as the average one. Needs a per-subject accumulator
+  of that individual's own contribution to what has been released. Also the place where the
+  release-decision leak gets corrected for, by tightening the internal threshold until the
+  posterior conditioned on the fact of release still meets the advertised bound.
 
 ## B. Attack and calibrate (M2–M4)
 
@@ -58,10 +84,21 @@ Goal: know how much an adaptive agent can re-identify at each restriction level,
   models, bulk of the credit spend.
 - **B2. Attack library.** Reproduce known Beacon attacks (membership inference, genome
   reconstruction from snapshots) as baselines, then let the agent adapt: query-splitting,
-  budget-probing, cross-session composition, prompt-level exfil of the clinician view.
+  budget-probing, cross-session composition, prompt-level exfil of the clinician view. Add two
+  from the feedback: **repeat-to-average**, where a refilling or refunding budget supplies the
+  repetitions needed to average the fuzzing away, and **price-model probing**, hunting the
+  discount where the specificity prior does not fit a diagnostic cohort, which is how Cho et al.
+  broke Raisaro's budget in under 40 queries.
+- **B2a. Pin the gallery in CI.** Noisegate's pattern, and a better shape than a one-off
+  evaluation: each attack demonstrated succeeding with the defence off and failing with it on, on
+  every build, so the defence cannot quietly rot. Cheap, and it is what makes B4 safe to iterate.
 - **B3. Restriction-level sweep.** Run B1 across the A3/A4 configurations. Output is the
   capability-vs-privacy curve: proportion of synthetic patients re-identified vs proportion of
-  honest mining tasks still solvable.
+  honest mining tasks still solvable. Report re-identification rate at a fixed false positive
+  rate, not hit counts. **Validity precondition:** any budget the upstream Beacon runs must be off
+  for these runs. Raisaro-style occlusion is silent, so an upstream budget shrinks the cohort
+  underneath the measurement and we cannot detect that it happened. We control the synthetic
+  instance and RUNX1db; sBeacon and DNAstack's have to be arranged before the sweep, not during.
 - **B4. Fix-and-rerun.** Feed breaks back into A3/A4. Iterate until the curve has a usable knee.
 - **B5. Safeguards liaison.** Share attack transcripts with Anthropic safeguards; coordinate
   disclosure before publishing attacker-cost curves.
@@ -93,7 +130,17 @@ Goal: what an honest user and an ordinary agent retrieve with no fuzzing and no 
 - **E1. Open source release.** Harness, synthetic generator, attack harness, restriction-level
   configs, with the audit format documented.
 - **E2. Curves and best practice.** Attacker-cost curves, recommended restriction levels, and a
-  short best-practice document. To Monarch, offered to GA4GH and ClinGen.
+  short best-practice document. To Monarch, offered to GA4GH and ClinGen. The curve is the
+  evidence; the **shipped artefact is the named presets read off it**, because an operator should
+  pick a point rather than tune a mechanism (A9). Report alongside it the prior-to-posterior
+  statement that makes an epsilon legible - "for an adversary with prior p, this moves the
+  posterior to at most q" - which costs nothing since accounting stays at the unbounded rate.
+- **E2a. Spec feedback to GA4GH.** Distinct from the best-practice document and cheaper to land.
+  Concrete asks accumulated so far: enough structure on the query object to meter predicate
+  specificity, granularity as a first-class enforceable field (both raised with Fiume), and
+  guidance separating a refunding rate limiter from a disclosure budget, with repeated-query
+  memoisation specified independently of budget state (from Rambla). All three are small,
+  and the profile and spec are early enough to influence.
 - **E3. Write-up.** Paper / preprint. AskBeacon is the natural "no budget" comparator.
 
 ## F. Governance and ethics (throughout)
@@ -114,3 +161,5 @@ Goal: what an honest user and an ordinary agent retrieve with no fuzzing and no 
 - D can start as soon as A1/A2 are up, and should, because workshop scheduling is slow.
 - C2 can start before F1 lands. C3 cannot.
 - E depends on B3 having a curve and C4 having at least one real recruitment.
+- A9's preset test gates A4: a budget component that cannot be reduced to a preset is not finished.
+- B3 is gated on upstream budgets being off wherever we do not own the Beacon.

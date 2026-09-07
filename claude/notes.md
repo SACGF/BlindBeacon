@@ -111,6 +111,29 @@ engine and composition accounting rather than building our own, which would free
 spend its time on view splitting, Beacon semantics and adaptive-attacker curves. Apache-2.0 makes
 that legally straightforward. Worth citing regardless, and worth contacting the author.
 
+## Beacon spec review: Jordi Rambla (2026-09-07)
+
+Design review from the Beacon v2 spec lead. Not prior art in the paper sense, but it is the second
+deployed budget we know of and the first external read of our design, so it belongs alongside the
+Portuguese Beacon in `literature/beacon_attacks/README.md` section 5.
+
+Their implementation carries an optional budget, per IP for anonymous users or per authenticated
+user, spent on each positive answer and **returned after some minutes**. That is a rate limiter
+rather than a disclosure budget, and short refunds specifically undermine response randomisation by
+supplying the repetitions needed to average it out. Worth knowing that a second implementation has
+independently arrived at Raisaro-shaped metering and then softened it for usability, because that is
+the pressure our own budget will come under too.
+
+Three points, all taken, worked through in `claude/budget_notes.md` under "Feedback from Jordi
+Rambla": budget composition and what "double budgeting" actually means, framing risk as what the
+attacker gains that is new, and simplicity for Beacon admins as a hard constraint. The third one
+says a piece of our design as written cannot ship, which is now `overall_plan.md` A9.
+
+Status: live reviewer relationship, same shape as the Fiume one above. Two things to follow up -
+whether their implementation memoises repeated queries independently of budget state, and whether
+the separation of rate limiting from disclosure accounting is worth a note in the spec's own
+guidance (`overall_plan.md` E2a).
+
 ## Licensing decision: Apache-2.0 (2026-09-04)
 
 BlindBeacon is Apache-2.0, deliberately breaking from SACGF house style (cdot and hgvs are both MIT).
