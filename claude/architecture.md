@@ -45,6 +45,29 @@ Downstream we expose the profile's canonical operation name (`ga4gh.beacon.varia
 the control and treatment arms present the same tool surface to the agent. If the two arms differ in
 tool naming as well as in fuzzing, the experiment is confounded and the curves mean nothing.
 
+## The gateway is its own principal upstream
+
+Raised by Jordi Rambla, 2026-09-07: Beacon implementations already carry an optional budget, per IP
+or per authenticated user, so what happens when an agent is added and two budgets are in play?
+`claude/budget_notes.md` works the question through; the architectural consequence is here.
+
+The gateway authenticates to the upstream Beacon as its own service principal, and carries the
+clinician's identity in-band for the audit log rather than in the upstream credential. It must not
+present the clinician's own Beacon credentials.
+
+The reason is not tidiness. Raisaro-style budgets, including the deployed Portuguese Beacon one,
+meter per `{user, subject}` pair and enforce by **silently occluding** subjects once their budget is
+spent. If the agent's exploratory queries land on the clinician's upstream account, then the
+clinician's own exact view, which this design promises is unmetered, is silently degraded by an
+agent working on their behalf - and both views end up computed over a data-dependent subset that
+neither view reports. The measured cost is not marginal: the Portuguese Beacon sees the first
+occlusion after 8.3 queries at N=25,000 and 32.5 at N=100,000, putting 67,741 samples on the order of
+twenty, against an agent that walks ontologies.
+
+Where two meters unavoidably cover the same pipe, the effective limit is the **minimum** of the two,
+never the sum. Summing turns two budgets into twice the budget and makes the agent route a way to
+buy budget rather than a way to control it.
+
 ## Host the conversation server-side
 
 The webapp should call Claude itself rather than have clinicians point Claude Desktop at our MCP
@@ -168,3 +191,10 @@ Two honest caveats:
   safer and slower. Probably a per-deployment setting rather than a fixed choice.
 - Session pairing if we ever do support Claude Desktop alongside the webapp. Deferred; not needed
   for any of the three evaluation arms.
+- Upstream budgets during cross-testing. sBeacon and DNAstack's may run their own budgets, and
+  silent occlusion moves the ground truth underneath Arm 2's re-identification rates. We cannot
+  currently detect occlusion, by design of the mechanism, so either it is disabled for the runs or
+  B3's numbers are measured against a shrinking cohort. Settle before B3, not during.
+- Whether the admin-facing surface can be reduced to a named restriction level plus a handful of
+  steward declarations. `budget_notes.md` now asserts that a component which cannot be reduced to a
+  preset does not ship, and the three-part budget as written does not yet pass that test.
